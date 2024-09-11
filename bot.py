@@ -1,23 +1,52 @@
 import json
 
 import telebot
-from config import token
 import requests
 
-bot = telebot.TeleBot(token=token)
-url = 'http://127.0.0.1:8000/api/vacancy/'
+bot = telebot.TeleBot(token='7144823259:AAEborHn6X6yFNNOAwn4QZZylE3vhyEMh4w')
+API_URL = 'http://127.0.0.1:8000'
+
+
+def auth(message):
+    url = f'{API_URL}/auth/users/'
+    data = {
+        'username': f'{message.chat.id}',
+        'password': f'{message.chat.id}',
+    }
+    response = requests.post(url=url, data=data)
+
+    if response.status_code == 201:
+        user_id = response.json().get('id')
+        url_next = f'{API_URL}/api/user-additional/'
+        data_next = {
+          "user": user_id,
+          "telegram_id": message.chat.id,
+        }
+        response = requests.post(url=url_next, data=data_next)
 
 
 @bot.message_handler(commands=['start'])
-def you_id(message):
-    bot.send_message(message.chat.id, f"ID: {message.chat.id} Name: {message.from_user.first_name} ")
-    response = requests.get(url)
-    if response.status_code == 200:
-        data = response.json()
-        results = data.get('results', [])
-        for item in results:
-            item_str = json.dumps(item, ensure_ascii=False, indent=4)
-            bot.send_message(message.chat.id, item_str)
+def start(message):
+    auth(message)
+    # додати кнопки "Знайти" та "Тест"
+    # зареєструвати наступний крок menu
+
+def menu(message, current_bot):
+    pass
+
+def process_search(message, current_bot):
+    # вивести інформаційне повідомлення "Введіть параметри пошуку..."
+    # зареєструвати наступний крок search_vacancies
+    pass
+
+def search_vacancies(message, current_bot):
+    # зчитує параметри які ввів користувач  розбиває на окремі змінні
+    # робить запит на АПІ з потрібними фільтрами
+    # отримує відповідь з АПІ і формує текстове повідомлення з вакансіями та надсилає його юзеру
+
+def process_test(message, current_bot):
+    pass
+
 
 
 if __name__ == '__main__':
