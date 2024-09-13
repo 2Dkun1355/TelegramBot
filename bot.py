@@ -1,14 +1,17 @@
-import json
 import telebot
 from telebot import types
 import requests
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from db_backend import DB
+
 # from config import token
 
 bot = telebot.TeleBot(token='7144823259:AAEborHn6X6yFNNOAwn4QZZylE3vhyEMh4w')
 API_URL = 'http://127.0.0.1:8000'
-search = {}
+
+db = DB()
+
 
 def auth(message):
     url = f'{API_URL}/auth/users/'
@@ -72,33 +75,33 @@ def process_search(message):
 def handle_selection(call):
     category = call.data.rsplit('_', 1)[0]
     button = call.data.split('_')[-1]
+    chat_id = call.message.chat.id
 
-    if call.message.chat.id not in search:
-        search[call.message.chat.id] = {}
+
+    # if chat_id not in db.chats():
+    #     db.update(chat_id, {})
     if category in ["programming_language", "level_need"]:
-        search.get(call.message.chat.id).update({category: button})
+        db.update(chat_id, {category: button})
     elif category == "location":
         if button != "віддалено":
-            search.get(call.message.chat.id).update({category: button})
+            db.update(chat_id, {category: button})
         else:
-            search.get(call.message.chat.id).update({"is_remote": True})
+            db.update(chat_id, {"is_remote": True})
 
     elif category == "search" and button == "Пошук":
         search_vacancies(call.message)
     elif category == "search" and button == "Скасувати":
-        search.get(call.message.chat.id).clear()
+        db.clear(chat_id)
 
 def search_vacancies(message):
     url_search = f"{API_URL}/api/vacancy/"
     try:
         # робить запит на АПІ з потрібними фільтрами
-        response = requests.get(url_search, params=search.get(message.chat.id))
+        response = requests.get(url_search, params=db.get(message.chat.id))
         if response.status_code == 200:
             results = response.json().get('results', [])
             for item in results:
-                bot.send_message(message.chat.id, f"{item.get("programming_language")}\n"
-                                                  f"{item.get("url")}")
-
+                bot.send_message(message.chat.id, f"{item.get('programming_language')}\n{item.get('url')}")
 
         # отримує відповідь з АПІ і формує текстове повідомлення з вакансіями та надсилає його юзеру
 
@@ -117,12 +120,10 @@ def get_user(message):
 
 
 def user_search_create(message, data):
-    # створити UserSearch
     user_id = get_user(message)
     data.update({'user': user_id})
     url = f'{API_URL}/api/user-search/'
     response = requests.post(url=url, data=data)
-    print(response.json())
 
 
 def process_test(message):
