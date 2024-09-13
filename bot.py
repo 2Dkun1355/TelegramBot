@@ -2,10 +2,13 @@ import json
 import telebot
 from telebot import types
 import requests
+from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+
 # from config import token
 
 bot = telebot.TeleBot(token='7144823259:AAEborHn6X6yFNNOAwn4QZZylE3vhyEMh4w')
 API_URL = 'http://127.0.0.1:8000'
+search = {}
 
 def auth(message):
     url = f'{API_URL}/auth/users/'
@@ -23,6 +26,12 @@ def auth(message):
           "telegram_id": message.chat.id,
         }
         response = requests.post(url=url_next, data=data_next)
+
+def create_keyboard(options, prefix):
+    buttons = [InlineKeyboardButton(option, callback_data=f"{prefix}_{option}") for option in options]
+    markup = InlineKeyboardMarkup()
+    markup.row(*buttons)
+    return markup
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -43,37 +52,57 @@ def menu(message):
         process_test(message)
 
 def process_search(message):
-    bot.send_message(message.chat.id, f"Введіть параметри пошуку в форматі:\n"
-                                      f"Мова програмування\n"
-                                      f"Рівень\n"
-                                      f"Місто чи віддалено")
-    bot.register_next_step_handler(message, search_vacancies)
+    programming_language = ["Python", "Java", "JavaScript", "C++", "PHP"]
+    markup = create_keyboard(programming_language, "programming_language")
+    bot.send_message(message.chat.id, "Мова програмування:", reply_markup=markup)
+
+    level_need = ["Junior", "Middle", "Senior"]
+    markup = create_keyboard(level_need, "level_need")
+    bot.send_message(message.chat.id, "Рівень програмування:", reply_markup=markup)
+
+    location = ["Lviv", "Odesa", "Kyiv", "віддалено"]
+    markup = create_keyboard(location, "location")
+    bot.send_message(message.chat.id, "Місто:", reply_markup=markup)
+
+    action = ["Пошук", "Скасувати"]
+    markup = create_keyboard(action, "search")
+    bot.send_message(message.chat.id, "Виберіть опцію:", reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: True)
+def handle_selection(call):
+    category = call.data.rsplit('_', 1)[0]
+    button = call.data.split('_')[-1]
+
+    if call.message.chat.id not in search:
+        search[call.message.chat.id] = {}
+    if category in ["programming_language", "level_need"]:
+        search.get(call.message.chat.id).update({category: button})
+    elif category == "location":
+        if button != "віддалено":
+            search.get(call.message.chat.id).update({category: button})
+        else:
+            search.get(call.message.chat.id).update({"is_remote": True})
+
+    elif category == "search" and button == "Пошук":
+        search_vacancies(call.message)
+    elif category == "search" and button == "Скасувати":
+        search.get(call.message.chat.id).clear()
 
 def search_vacancies(message):
-    print('111111')
-    # зчитує параметри які ввів користувач  розбиває на окремі змінні
+    url_search = f"{API_URL}/api/vacancy/"
     try:
-        text = message.text.split()
-        data = {
-            'programming_language': text[0],
-            'level_need': text[1],
-        }
-        if text[2].lower() == 'віддалено':
-            data.update({
-                'is_remote': True
-            })
-        else:
-            data.update({
-                'location': text[2]
-            })
         # робить запит на АПІ з потрібними фільтрами
+        response = requests.get(url_search, params=search.get(message.chat.id))
+        if response.status_code == 200:
+            results = response.json().get('results', [])
+            for item in results:
+                bot.send_message(message.chat.id, f"{item.get("programming_language")}\n"
+                                                  f"{item.get("url")}")
 
-        print('222222')
-        user_search_create(message, data)
 
         # отримує відповідь з АПІ і формує текстове повідомлення з вакансіями та надсилає його юзеру
-        # виклик функція яка створює UserSearch
-        print('333333')
+
+        # user_search_create(message, search.get(message.chat.id))
     except:
         pass
 
