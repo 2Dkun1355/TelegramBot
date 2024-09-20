@@ -2,12 +2,10 @@ import telebot
 from telebot import types
 import requests
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
-
+from config import token
 from db_backend import DB
 
-# from config import token
-
-bot = telebot.TeleBot(token='7144823259:AAEborHn6X6yFNNOAwn4QZZylE3vhyEMh4w')
+bot = telebot.TeleBot(token=token)
 API_URL = 'http://127.0.0.1:8000'
 
 db = DB()
